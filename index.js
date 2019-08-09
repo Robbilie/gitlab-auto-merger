@@ -6,9 +6,10 @@ const JIRA_AUTH = process.env.JIRA_AUTH;
 const GITLAB_URL = process.env.GITLAB_URL;
 const JIRA_URL = process.env.JIRA_URL;
 
-const gitlabProjectId = 1685;
-const gitlabBranchName = "rb-release-8-0-0";
-const jiraReleaseName = "Release 8.0.0"
+const GITLAB_BRANCH_NAME = process.env.GITLAB_BRANCH_NAME;
+const JIRA_RELEASE_NAME = process.env.JIRA_RELEASE_NAME;
+const JIRA_FIELD_NAME = process.env.JIRA_FIELD_NAME;
+const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
 
 run().catch(console.log);
 setInterval(() => run().catch(console.log), 1000 * 60);
@@ -65,14 +66,14 @@ async function getGitlabMRs() {
 }
 
 function buildMRsUrl() {
-	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests`
+	return `${GITLAB_URL}/projects/${GITLAB_PROJECT_ID}/merge_requests`
 		+ `?private_token=${GITLAB_TOKEN}`
 		+ `&scope=all`
 		+ `&state=opened`
 		//+ `&approver_ids=Any`
 		+ `&labels=Approved`
 		+ `&wip=no`
-		+ `&target_branch=${gitlabBranchName}`
+		+ `&target_branch=${GITLAB_BRANCH_NAME}`
 		+ `&sort=asc`;
 }
 
@@ -84,7 +85,7 @@ async function getJiraTickets() {
 			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({
-			jql: `project='MYA' and fixVersion='${jiraReleaseName}' and 'Fixed in Build' is EMPTY`,
+			jql: `project='MYA' and '${JIRA_FIELD_NAME}'='${JIRA_RELEASE_NAME}' and 'Fixed in Build' is EMPTY`,
 			startAt: 0,
 			maxResults: 10000,
 			fields: [
@@ -119,7 +120,7 @@ function needsRebase(mr) {
 }
 
 function buildMRUrl(mrIid) {
-	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests/${mrIid}`
+	return `${GITLAB_URL}/projects/${GITLAB_PROJECT_ID}/merge_requests/${mrIid}`
 		+ `?private_token=${GITLAB_TOKEN}`
 		+ `&include_diverged_commits_count=true`
 		+ `&include_rebase_in_progress=true`;
@@ -132,7 +133,7 @@ async function rebaseMR(mr) {
 }
 
 function buildRebaseUrl(mrIid) {
-	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests/${mrIid}/rebase?private_token=${GITLAB_TOKEN}`;
+	return `${GITLAB_URL}/projects/${GITLAB_PROJECT_ID}/merge_requests/${mrIid}/rebase?private_token=${GITLAB_TOKEN}`;
 }
 
 async function mergeMR(mr) {
@@ -142,7 +143,7 @@ async function mergeMR(mr) {
 }
 
 function buildMergeUrl(mrIid) {
-	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests/${mrIid}/merge?private_token=${GITLAB_TOKEN}`;
+	return `${GITLAB_URL}/projects/${GITLAB_PROJECT_ID}/merge_requests/${mrIid}/merge?private_token=${GITLAB_TOKEN}`;
 }
 
 async function isApproved(mr) {
@@ -152,5 +153,5 @@ async function isApproved(mr) {
 }
 
 function buildApprovalsUrl(mrIid) {
-	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests/${mrIid}/approvals?private_token=${GITLAB_TOKEN}`;
+	return `${GITLAB_URL}/projects/${GITLAB_PROJECT_ID}/merge_requests/${mrIid}/approvals?private_token=${GITLAB_TOKEN}`;
 }
