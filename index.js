@@ -1,0 +1,156 @@
+const fetch = require("node-fetch");
+
+const GITLAB_TOKEN = process.env.GITLAB_TOKEN;
+const JIRA_AUTH = process.env.JIRA_AUTH;
+
+const GITLAB_URL = process.env.GITLAB_URL;
+const JIRA_URL = process.env.JIRA_URL;
+
+const gitlabProjectId = 1685;
+const gitlabBranchName = "rb-release-8-0-0";
+const jiraReleaseName = "Release 8.0.0"
+
+run().catch(console.log);
+setInterval(() => run().catch(console.log), 1000 * 60);
+
+async function run() {
+	console.log("getting merge requests");
+	const gitlabMRs = await getGitlabMRs();
+	console.log("getting jira tickets");
+	const jiraTickets = await getJiraTickets();
+	const filteredMRs = filterMRs(jiraTickets, gitlabMRs);
+	for (let mrEntry of filteredMRs) {
+		console.log("loading merge request:", mrEntry.iid);
+		const mr = await getMR(mrEntry.iid);
+		if (mr.merge_status === "cannot_be_merged") {
+			console.log("cannot be merged");
+			continue;
+		}
+		if (mr.pipeline.status === "failed") {
+			console.log("failed, continue with next pipeline");
+			continue;
+		}
+		if (await isApproved(mr) !== true) {
+			console.log("is not approved");
+			continue;
+		}
+		if (needsRebase(mr)) {
+			console.log("rebasing");
+			await rebaseMR(mr);
+			break;
+		}
+		if (!mr.pipeline) {
+			console.log("no pipeline");
+			break;
+		}
+		if (mr.pipeline.status === "running") {
+			console.log("pipeline running");
+			break;
+		}
+		if (mr.pipeline.status === "success") {
+			console.log("merging pipeline");
+			await mergeMR(mr);
+		}
+		if (mr.pipeline.status === "success") {
+			console.log("success, continue with next pipeline");
+			continue;
+		}
+	}
+	console.log("done");
+}
+
+async function getGitlabMRs() {
+	const response = await fetch(buildMRsUrl());
+	return await response.json();
+}
+
+function buildMRsUrl() {
+	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests`
+		+ `?private_token=${GITLAB_TOKEN}`
+		+ `&scope=all`
+		+ `&state=opened`
+		//+ `&approver_ids=Any`
+		+ `&labels=Approved`
+		+ `&wip=no`
+		+ `&target_branch=${gitlabBranchName}`
+		+ `&sort=asc`;
+}
+
+async function getJiraTickets() {
+	const response = await fetch(buildJiraUrl(), {
+		method: "POST",
+		headers: {
+			"Authorization": `Basic ${JIRA_AUTH}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			jql: `project='MYA' and fixVersion='${jiraReleaseName}' and 'Fixed in Build' is EMPTY`,
+			startAt: 0,
+			maxResults: 10000,
+			fields: [
+				"summary",
+				"versions",
+				"fixVersions",
+			],
+		}),
+	});
+	const data = await response.json();
+	return data.issues;
+}
+
+function buildJiraUrl() {
+	return `${JIRA_URL}/search`;
+}
+
+function filterMRs(jiraTickets, mrs) {
+	return mrs.filter(mr => {
+		const match = mr.description.match(/https:\/\/collaboration\.msi\.audi\.com\/jira\/browse\/(MYA-\d+)/);
+		return match && jiraTickets.some(ticket => ticket.key === match[1]);
+	});
+}
+
+async function getMR(mrIid) {
+	const response = await fetch(buildMRUrl(mrIid));
+	return await response.json();
+}
+
+function needsRebase(mr) {
+	return mr.diverged_commits_count > 0 && mr.rebase_in_progress === false;
+}
+
+function buildMRUrl(mrIid) {
+	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests/${mrIid}`
+		+ `?private_token=${GITLAB_TOKEN}`
+		+ `&include_diverged_commits_count=true`
+		+ `&include_rebase_in_progress=true`;
+}
+
+async function rebaseMR(mr) {
+	await fetch(buildRebaseUrl(mr.iid), {
+		method: "PUT",
+	});
+}
+
+function buildRebaseUrl(mrIid) {
+	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests/${mrIid}/rebase?private_token=${GITLAB_TOKEN}`;
+}
+
+async function mergeMR(mr) {
+	await fetch(buildMergeUrl(mr.iid), {
+		method: "PUT",
+	});
+}
+
+function buildMergeUrl(mrIid) {
+	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests/${mrIid}/merge?private_token=${GITLAB_TOKEN}`;
+}
+
+async function isApproved(mr) {
+	const response = await fetch(buildApprovalsUrl(mr.iid));
+	const data = await response.json();
+	return data.approved;
+}
+
+function buildApprovalsUrl(mrIid) {
+	return `${GITLAB_URL}/projects/${gitlabProjectId}/merge_requests/${mrIid}/approvals?private_token=${GITLAB_TOKEN}`;
+}
