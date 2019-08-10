@@ -22,12 +22,12 @@ async function run() {
 	const filteredMRs = filterMRs(jiraTickets, gitlabMRs);
 	for (let mrEntry of filteredMRs) {
 		console.log("loading merge request:", mrEntry.iid);
-		const mr = await getMR(mrEntry.iid);
 		if (mr.merge_status === "cannot_be_merged") {
 			console.log("cannot be merged");
 			continue;
 		}
-		if (mr.pipeline.status === "failed") {
+		const mr = await getMR(mrEntry.iid);
+		if (!mr.pipeline || mr.pipeline.status === "failed") {
 			console.log("failed, continue with next pipeline");
 			continue;
 		}
