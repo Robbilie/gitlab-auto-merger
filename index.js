@@ -27,7 +27,11 @@ async function run() {
 			continue;
 		}
 		const mr = await getMR(mrEntry.iid);
-		if (!mr.pipeline || mr.pipeline.status === "failed") {
+		if (!mr.pipeline) {
+			console.log("no pipeline");
+			break;
+		}
+		if (mr.pipeline.status === "failed") {
 			console.log("failed, continue with next pipeline");
 			continue;
 		}
@@ -38,10 +42,6 @@ async function run() {
 		if (needsRebase(mr)) {
 			console.log("rebasing");
 			await rebaseMR(mr);
-			break;
-		}
-		if (!mr.pipeline) {
-			console.log("no pipeline");
 			break;
 		}
 		if (mr.pipeline.status === "running") {
