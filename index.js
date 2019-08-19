@@ -22,7 +22,7 @@ async function run() {
 	const filteredMRs = filterMRs(jiraTickets, gitlabMRs);
 	for (let mrEntry of filteredMRs) {
 		console.log("loading merge request:", mrEntry.iid);
-		if (mr.merge_status === "cannot_be_merged") {
+		if (mrEntry.merge_status === "cannot_be_merged") {
 			console.log("cannot be merged");
 			continue;
 		}
@@ -68,8 +68,6 @@ function buildMRsUrl() {
 		+ `?private_token=${GITLAB_TOKEN}`
 		+ `&scope=all`
 		+ `&state=opened`
-		//+ `&approver_ids=Any`
-		+ `&labels=Approved`
 		+ `&wip=no`
 		+ `&target_branch=${GITLAB_BRANCH_NAME}`
 		+ `&sort=asc`;
