@@ -10,6 +10,7 @@ const GITLAB_BRANCH_NAME = process.env.GITLAB_BRANCH_NAME;
 const JIRA_RELEASE_NAME = process.env.JIRA_RELEASE_NAME;
 const JIRA_FIELD_NAME = process.env.JIRA_FIELD_NAME;
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
+const JIRA_STATUS = process.env.JIRA_STATUS ? process.env.JIRA_STATUS.split(",") : [];
 
 run().catch(console.log);
 setInterval(() => run().catch(console.log), 1000 * 60);
@@ -88,6 +89,7 @@ async function getJiraTickets() {
 				"summary",
 				"versions",
 				"fixVersions",
+				"status",
 			],
 		}),
 	});
@@ -102,7 +104,17 @@ function buildJiraUrl() {
 function filterMRs(jiraTickets, mrs) {
 	return mrs.filter(mr => {
 		const match = mr.description.match(/https:\/\/collaboration\.msi\.audi\.com\/jira\/browse\/(MYA-\d+)/);
-		return match && jiraTickets.some(ticket => ticket.key === match[1]);
+		if (!match) {
+			return false;
+		}
+		const ticket = jiraTickets.find(ticket => ticket.key === match[1]);
+		if (!ticket) {
+			return false;
+		}
+		if (!JIRA_STATUS.includes(ticket.fields.status.name)) {
+			return false;
+		}
+		return true;
 	});
 }
 

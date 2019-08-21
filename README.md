@@ -9,4 +9,5 @@ GITLAB_BRANCH_NAME=<gitlab_branch_name>
 JIRA_RELEASE_NAME=<jira_release_name>
 JIRA_FIELD_NAME=<jira_field_name>
 GITLAB_PROJECT_ID=<gitlab_project_id>
+JIRA_STATUS=<jira_ticket_status>
 node index.js
