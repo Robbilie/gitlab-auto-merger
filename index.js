@@ -82,7 +82,7 @@ async function getJiraTickets() {
 			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({
-			jql: `project='MYA' and '${JIRA_FIELD_NAME}'='${JIRA_RELEASE_NAME}' and 'Fixed in Build' is EMPTY`,
+			jql: `project='MYA' and '${JIRA_FIELD_NAME}'='${JIRA_RELEASE_NAME}'`,
 			startAt: 0,
 			maxResults: 10000,
 			fields: [
@@ -111,7 +111,7 @@ function filterMRs(jiraTickets, mrs) {
 		if (!ticket) {
 			return false;
 		}
-		if (!JIRA_STATUS.includes(ticket.fields.status.name)) {
+		if (JIRA_STATUS.length && !JIRA_STATUS.includes(ticket.fields.status.name)) {
 			return false;
 		}
 		return true;
