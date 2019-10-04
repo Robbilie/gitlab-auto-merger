@@ -10,7 +10,10 @@ const GITLAB_BRANCH_NAME = process.env.GITLAB_BRANCH_NAME;
 const JIRA_RELEASE_NAME = process.env.JIRA_RELEASE_NAME;
 const JIRA_FIELD_NAME = process.env.JIRA_FIELD_NAME;
 const GITLAB_PROJECT_ID = process.env.GITLAB_PROJECT_ID;
-const JIRA_STATUS = process.env.JIRA_STATUS ? process.env.JIRA_STATUS.split(",") : [];
+const JIRA_PROJECT_ID = process.env.JIRA_PROJECT_ID;
+const JIRA_STATUS = process.env.JIRA_STATUS;
+
+const ALLOW_EMPTY_JIRA_FIELD = process.env.ALLOW_EMPTY_JIRA_FIELD === "true";
 
 run().catch(console.log);
 setInterval(() => run().catch(console.log), 1000 * 60);
@@ -19,7 +22,8 @@ async function run() {
 	console.log("getting merge requests");
 	const gitlabMRs = await getGitlabMRs();
 	console.log("getting jira tickets");
-	const jiraTickets = await getJiraTickets();
+	const ids = getJiraIds(gitlabMRs);
+	const jiraTickets = await getJiraTickets(ids);
 	const filteredMRs = filterMRs(jiraTickets, gitlabMRs);
 	for (let mrEntry of filteredMRs) {
 		console.log("loading merge request:", mrEntry.iid);
@@ -30,7 +34,7 @@ async function run() {
 		const mr = await getMR(mrEntry.iid);
 		if (!mr.pipeline) {
 			console.log("no pipeline");
-			break;
+			continue;
 		}
 		if (mr.pipeline.status === "failed") {
 			console.log("failed, continue with next pipeline");
@@ -51,7 +55,7 @@ async function run() {
 		}
 		if (mr.pipeline.status === "success") {
 			console.log("merging pipeline");
-			await mergeMR(mr);
+			//await mergeMR(mr);
 			console.log("success, continue with next pipeline");
 			continue;
 		}
@@ -74,7 +78,10 @@ function buildMRsUrl() {
 		+ `&sort=asc`;
 }
 
-async function getJiraTickets() {
+async function getJiraTickets(ids) {
+	const FIELD_FILTER = `(${ALLOW_EMPTY_JIRA_FIELD ? `'${JIRA_FIELD_NAME}' is EMPTY OR ` : ''}'${JIRA_FIELD_NAME}'='${JIRA_RELEASE_NAME}')`;
+	const STATUS_FILTER = JIRA_STATUS ? `status in (${JIRA_STATUS})` : 'status is not EMPTY';
+	const ID_FILTER = `id in (${ids.join(",")})`;
 	const response = await fetch(buildJiraUrl(), {
 		method: "POST",
 		headers: {
@@ -82,7 +89,7 @@ async function getJiraTickets() {
 			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({
-			jql: `project='MYA' and '${JIRA_FIELD_NAME}'='${JIRA_RELEASE_NAME}'`,
+			jql: `project='${JIRA_PROJECT_ID}' AND ${STATUS_FILTER} AND ${FIELD_FILTER} AND ${ID_FILTER}`,
 			startAt: 0,
 			maxResults: 10000,
 			fields: [
@@ -101,17 +108,21 @@ function buildJiraUrl() {
 	return `${JIRA_URL}/search`;
 }
 
+function getJiraIds(mrs) {
+	return mrs
+		.map(mr => mr.description.match(new RegExp(`https:\\/\\/collaboration\\.msi\\.audi\\.com\\/jira\\/browse\\/(${JIRA_PROJECT_ID}-\\d+)`)))
+		.filter(mr => !!mr)
+		.map(mr => mr[1]);
+}
+
 function filterMRs(jiraTickets, mrs) {
 	return mrs.filter(mr => {
-		const match = mr.description.match(/https:\/\/collaboration\.msi\.audi\.com\/jira\/browse\/(MYA-\d+)/);
+		const match = mr.description.match(new RegExp(`https:\\/\\/collaboration\\.msi\\.audi\\.com\\/jira\\/browse\\/(${JIRA_PROJECT_ID}-\\d+)`));
 		if (!match) {
 			return false;
 		}
 		const ticket = jiraTickets.find(ticket => ticket.key === match[1]);
 		if (!ticket) {
-			return false;
-		}
-		if (JIRA_STATUS.length && !JIRA_STATUS.includes(ticket.fields.status.name)) {
 			return false;
 		}
 		return true;
