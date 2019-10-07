@@ -55,7 +55,7 @@ async function run() {
 		}
 		if (mr.pipeline.status === "success") {
 			console.log("merging pipeline");
-			//await mergeMR(mr);
+			await mergeMR(mr);
 			console.log("success, continue with next pipeline");
 			continue;
 		}
