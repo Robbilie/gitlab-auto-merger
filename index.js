@@ -55,6 +55,7 @@ async function run() {
 		}
 		if (mr.pipeline.status === "success") {
 			console.log("merging pipeline");
+			break;
 			await mergeMR(mr);
 			console.log("success, continue with next pipeline");
 			continue;
@@ -75,6 +76,8 @@ function buildMRsUrl() {
 		+ `&state=opened`
 		+ `&wip=no`
 		+ `&target_branch=${GITLAB_BRANCH_NAME}`
+		+ `&order_by=created_at`
+		+ `&per_page=1000`
 		+ `&sort=asc`;
 }
 
