@@ -15,6 +15,8 @@ const JIRA_STATUS = process.env.JIRA_STATUS;
 
 const ALLOW_EMPTY_JIRA_FIELD = process.env.ALLOW_EMPTY_JIRA_FIELD === "true";
 
+const TICKET_URL_MATCH = `https:\\/\\/collaboration\\.msi\\.audi\\.com\\/jira\\/browse\\/(${JIRA_PROJECT_ID}-\\d+)`;
+
 run().catch(console.log);
 setInterval(() => run().catch(console.log), 1000 * 60);
 
@@ -27,6 +29,10 @@ async function run() {
 	const filteredMRs = filterMRs(jiraTickets, gitlabMRs);
 	for (let mrEntry of filteredMRs) {
 		console.log("loading merge request:", mrEntry.iid);
+		if (await commitsMatchDescription(mrEntry.iid, jiraTickets) !== true) {
+			console.log("commits dont match description");
+			continue;
+		}
 		if (mrEntry.merge_status === "cannot_be_merged") {
 			console.log("cannot be merged");
 			continue;
@@ -111,23 +117,19 @@ function buildJiraUrl() {
 }
 
 function getJiraIds(mrs) {
-	return mrs
-		.map(mr => mr.description.match(new RegExp(`https:\\/\\/collaboration\\.msi\\.audi\\.com\\/jira\\/browse\\/(${JIRA_PROJECT_ID}-\\d+)`)))
+	return [].concat(...mrs
+		.map(mr => mr.description.match(new RegExp(TICKET_URL_MATCH, "g")))
 		.filter(mr => !!mr)
-		.map(mr => mr[1]);
+		.map(mr => mr.map(url => url.replace(new RegExp(TICKET_URL_MATCH), "$1"))));
 }
 
 function filterMRs(jiraTickets, mrs) {
 	return mrs.filter(mr => {
-		const match = mr.description.match(new RegExp(`https:\\/\\/collaboration\\.msi\\.audi\\.com\\/jira\\/browse\\/(${JIRA_PROJECT_ID}-\\d+)`));
+		const match = mr.description.match(new RegExp(TICKET_URL_MATCH, "g"));
 		if (!match) {
 			return false;
 		}
-		const ticket = jiraTickets.find(ticket => ticket.key === match[1]);
-		if (!ticket) {
-			return false;
-		}
-		return true;
+		return match.every(key => jiraTickets.find(ticket => ticket.key === key));
 	});
 }
 
@@ -175,4 +177,14 @@ async function isApproved(mr) {
 
 function buildApprovalsUrl(mrIid) {
 	return `${GITLAB_URL}/projects/${GITLAB_PROJECT_ID}/merge_requests/${mrIid}/approvals?private_token=${GITLAB_TOKEN}`;
+}
+
+async function commitsMatchDescription(mrIid, tickets) {
+	const response = await fetch(buildCommitsUrl(mrIid));
+	const commits = await response.json();
+	return commits.every(commit => tickets.find(ticket => ticket.key === commit.title.match(new RegExp(`(${JIRA_PROJECT_ID}-\\d+)`))));
+}
+
+function buildCommitsUrl(mrIid) {
+	return `${GITLAB_URL}/projects/${GITLAB_PROJECT_ID}/merge_requests/${mrIid}/commits?private_token=${GITLAB_TOKEN}`;
 }
