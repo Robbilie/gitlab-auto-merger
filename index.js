@@ -129,7 +129,7 @@ function filterMRs(jiraTickets, mrs) {
 		if (!match) {
 			return false;
 		}
-		return match.every(key => jiraTickets.find(ticket => ticket.key === key));
+		return match.every(url => jiraTickets.find(ticket => ticket.key === url.replace(new RegExp(TICKET_URL_MATCH), "$1")));
 	});
 }
 
@@ -182,7 +182,9 @@ function buildApprovalsUrl(mrIid) {
 async function commitsMatchDescription(mrIid, tickets) {
 	const response = await fetch(buildCommitsUrl(mrIid));
 	const commits = await response.json();
-	return commits.every(commit => tickets.find(ticket => ticket.key === commit.title.match(new RegExp(`(${JIRA_PROJECT_ID}-\\d+)`))));
+	return commits
+		.map(commit => commit.title.match(new RegExp(`(${JIRA_PROJECT_ID}-\\d+)`)))
+		.every(commit => commit && tickets.find(ticket => ticket.key === commit[1]));
 }
 
 function buildCommitsUrl(mrIid) {
