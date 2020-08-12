@@ -29,7 +29,7 @@ async function run() {
 	const filteredMRs = filterMRs(jiraTickets, gitlabMRs);
 	for (let mrEntry of filteredMRs) {
 		console.log("loading merge request:", mrEntry.iid);
-		if (await commitsMatchDescription(mrEntry.iid, jiraTickets) !== true) {
+		if (await commitsMatchDescription(mrEntry) !== true) {
 			console.log("commits dont match description");
 			continue;
 		}
@@ -179,12 +179,13 @@ function buildApprovalsUrl(mrIid) {
 	return `${GITLAB_URL}/projects/${GITLAB_PROJECT_ID}/merge_requests/${mrIid}/approvals?private_token=${GITLAB_TOKEN}`;
 }
 
-async function commitsMatchDescription(mrIid, tickets) {
-	const response = await fetch(buildCommitsUrl(mrIid));
+async function commitsMatchDescription(mrEntry) {
+	const tickets = getJiraIds([mrEntry]);
+	const response = await fetch(buildCommitsUrl(mrEntry.iid));
 	const commits = await response.json();
 	return commits
 		.map(commit => commit.title.match(new RegExp(`(${JIRA_PROJECT_ID}-\\d+)`)))
-		.every(commit => commit && tickets.find(ticket => ticket.key === commit[1]));
+		.every(commit => commit && tickets.find(ticket => ticket === commit[1]));
 }
 
 function buildCommitsUrl(mrIid) {
