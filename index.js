@@ -87,7 +87,7 @@ function buildMRsUrl() {
 }
 
 async function getJiraTickets(ids) {
-	const FIELD_FILTER = `(${ALLOW_EMPTY_JIRA_FIELD ? `'${JIRA_FIELD_NAME}' is EMPTY OR ` : ''}'${JIRA_FIELD_NAME}'='${JIRA_RELEASE_NAME}')`;
+	const FIELD_FILTER = `(${ALLOW_EMPTY_JIRA_FIELD ? `'${JIRA_FIELD_NAME}' is EMPTY OR ` : ''} '${JIRA_FIELD_NAME}'='${JIRA_RELEASE_NAME}')`;
 	const STATUS_FILTER = JIRA_STATUS ? `status in (${JIRA_STATUS})` : 'status is not EMPTY';
 	const ID_FILTER = `id in (${ids.join(",")})`;
 	const response = await fetch(buildJiraUrl(), {
@@ -97,7 +97,7 @@ async function getJiraTickets(ids) {
 			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({
-			jql: `project='${JIRA_PROJECT_ID}' AND ${STATUS_FILTER} AND ${FIELD_FILTER} AND ${ID_FILTER}`,
+			jql: `project='${JIRA_PROJECT_ID}' AND ${STATUS_FILTER} ${JIRA_FIELD_NAME ? `AND ${FIELD_FILTER}` : ""} AND ${ID_FILTER}`,
 			startAt: 0,
 			maxResults: 10000,
 			fields: [
