@@ -1,7 +1,7 @@
 const fetch = require("node-fetch");
 
 const GITLAB_TOKEN = process.env.GITLAB_TOKEN;
-const JIRA_AUTH = process.env.JIRA_AUTH;
+const JIRA_AUTH = process.env.JIRA_AUTH ? process.env.JIRA_AUTH : Buffer.from(process.env.JIRA_USERNAME + ":" + process.env.JIRA_PASSWORD).toString("base64");
 
 const GITLAB_URL = process.env.GITLAB_URL;
 const JIRA_URL = process.env.JIRA_URL;
