@@ -15,7 +15,7 @@ const JIRA_STATUS = process.env.JIRA_STATUS;
 
 const ALLOW_EMPTY_JIRA_FIELD = process.env.ALLOW_EMPTY_JIRA_FIELD === "true";
 
-const TICKET_URL_MATCH = `https:\\/\\/collaboration\\.msi\\.audi\\.com\\/jira\\/browse\\/(${JIRA_PROJECT_ID}-\\d+)`;
+const TICKET_URL_MATCH = process.env.TICKET_URL_MATCH ? process.env.TICKET_URL_MATCH : `https:\\/\\/collaboration\\.msi\\.audi\\.com\\/jira\\/browse\\/(${JIRA_PROJECT_ID}-\\d+)`;
 
 run().catch(console.log);
 setInterval(() => run().catch(console.log), 1000 * 60);
