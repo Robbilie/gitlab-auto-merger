@@ -13,5 +13,6 @@ GITLAB_PROJECT_ID="<gitlab_project_id>" \
 JIRA_PROJECT_ID="<jira_project_id>" \
 JIRA_STATUS="<jira_ticket_status>" \
 ALLOW_EMPTY_JIRA_FIELD="<allow_empty_jira_field>" \
+TICKET_URL_MATCH="<regex_to_match_ticket_id_from_mr_description>" \
 node index.js
 ```
